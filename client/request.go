@@ -39,6 +39,10 @@ func ProxyRequest(uri string) (*goquery.Document, error) {
 		return nil, err
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		log.Fatalf("ip maybe don not have permission")
+	}
+
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
 		log.Printf("doc error(%s)", ipProxy)

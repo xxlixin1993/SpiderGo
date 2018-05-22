@@ -15,7 +15,7 @@ import (
 
 var (
 	// 要抓取的游记最大id
-	tripadvisorTotalId = 10000
+	tripadvisorTotalId = 1
 
 	// 起多少个goroutine去抓取
 	fetchGoroutineTotal = 3
@@ -23,22 +23,19 @@ var (
 	// 要抓取的url ex: https://www.tripadvisor.cn/TourismBlog-t6598
 	tripadvisorDetail = "https://www.tripadvisor.cn/TourismBlog-t"
 
-	// es client
-	esClient *elastic.Client
-
 	// Tripadvisor协程池
 	tPool map[int]*Tripadvisor
 )
 
 const (
 	// es 索引
-	kTripadvisorTitleIndex = "tti"
+	kTripadvisorTitleIndex = "dev"
 
 	// 间隔时间 s
-	kIntervalSecond = 58
+	kIntervalSecond = 10
 
 	// 休息时间 s
-	kSleepSecond = 60
+	kSleepSecond = 30
 
 	// 休息标记
 	kSleepFlag = "sleep"
@@ -55,7 +52,7 @@ func main() {
 	start := time.Now()
 
 	var esErr error
-	esClient, esErr = elastic.NewClient()
+	client.EsClient, esErr = elastic.NewClient()
 	if esErr != nil {
 		log.Printf("es client err : %s", esErr)
 		os.Exit(10)
@@ -81,10 +78,10 @@ func newTripadvisor() *Tripadvisor {
 func doTripadvisor() {
 	tPool = make(map[int]*Tripadvisor)
 
-	esChan := newEsChannel()
+	esChan := client.NewEsChannel()
 
-	esChan.esg.Add(1)
-	go esChan.output(kTripadvisorTitleIndex)
+	esChan.Esg.Add(1)
+	go esChan.Output(kTripadvisorTitleIndex)
 
 	for gnum := 0; gnum < fetchGoroutineTotal; gnum ++ {
 		tPool[gnum] = newTripadvisor()
@@ -95,6 +92,7 @@ func doTripadvisor() {
 
 	go timerJob()
 
+	// 应该为1 6609当前
 	for i := 1; i <= tripadvisorTotalId; i++ {
 		tPool[i%fetchGoroutineTotal].urlChan <- tripadvisorDetail + strconv.Itoa(i)
 	}
@@ -104,8 +102,8 @@ func doTripadvisor() {
 		tPool[key].twg.Wait()
 	}
 
-	close(esChan.done)
-	esChan.esg.Wait()
+	close(esChan.Done)
+	esChan.Esg.Wait()
 }
 
 // 间隔一段时间在执行
@@ -122,7 +120,7 @@ func timerJob(){
 
 
 // 抓取
-func (t *Tripadvisor) fetchTripadvisor(esChan *EsChannel) {
+func (t *Tripadvisor) fetchTripadvisor(esChan *client.EsChannel) {
 	defer t.twg.Done()
 	for {
 		select {
@@ -142,17 +140,21 @@ func (t *Tripadvisor) fetchTripadvisor(esChan *EsChannel) {
 				continue
 			}
 
-			title := doc.Find(".title-text").Text()
+			title,_ := doc.Find(".strategy-title .title-text").Html()
 
 			s := doc.Find(".strategy-description").Each(func(i int, s *goquery.Selection) {
 
 			})
-			esContent := &EsContent{
+			esContent := &client.EsContent{
 				Title:   title,
 				Content: s.Text(),
 				Url:     url,
 			}
-			esChan.esChan <- esContent
+			if title != "" {
+				esChan.EsChan <- esContent
+			} else {
+				log.Printf("None tile %s, url %s\n", title,url)
+			}
 		}
 	}
 }
