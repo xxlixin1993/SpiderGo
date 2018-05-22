@@ -16,10 +16,10 @@ import (
 
 var (
 	// 要抓取的游记最大id
-	tripadvisorTotalId = 10000
+	tripadvisorTotalId = 100
 
 	// 起多少个goroutine去抓取
-	fetchGoroutineTotal = 5
+	fetchGoroutineTotal = 3
 
 	// 要抓取的url ex: https://www.tripadvisor.cn/TourismBlog-t6598
 	tripadvisorDetail = "https://www.tripadvisor.cn/TourismBlog-t"
