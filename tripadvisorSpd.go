@@ -9,14 +9,13 @@ import (
 	"sync"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/olivere/elastic"
-	"context"
 	"os"
 	"Spider/client"
 )
 
 var (
 	// 要抓取的游记最大id
-	tripadvisorTotalId = 100
+	tripadvisorTotalId = 10000
 
 	// 起多少个goroutine去抓取
 	fetchGoroutineTotal = 3
@@ -36,10 +35,10 @@ const (
 	kTripadvisorTitleIndex = "tti"
 
 	// 间隔时间 s
-	kIntervalSecond = 5
+	kIntervalSecond = 58
 
 	// 休息时间 s
-	kSleepSecond = 5
+	kSleepSecond = 60
 
 	// 休息标记
 	kSleepFlag = "sleep"
@@ -50,18 +49,6 @@ type Tripadvisor struct {
 	urlChan chan string
 	done    chan int
 	twg     sync.WaitGroup
-}
-
-type EsContent struct {
-	Title   string
-	Url     string
-	Content string
-}
-
-type EsChannel struct {
-	esChan chan *EsContent
-	done   chan int
-	esg    sync.WaitGroup
 }
 
 func main() {
@@ -89,12 +76,6 @@ func newTripadvisor() *Tripadvisor {
 	}
 }
 
-func newEsChannel() *EsChannel {
-	return &EsChannel{
-		esChan: make(chan *EsContent),
-		done:   make(chan int),
-	}
-}
 
 // 开始获取页面信息
 func doTripadvisor() {
@@ -103,7 +84,7 @@ func doTripadvisor() {
 	esChan := newEsChannel()
 
 	esChan.esg.Add(1)
-	go esChan.output()
+	go esChan.output(kTripadvisorTitleIndex)
 
 	for gnum := 0; gnum < fetchGoroutineTotal; gnum ++ {
 		tPool[gnum] = newTripadvisor()
@@ -136,43 +117,9 @@ func timerJob(){
 			val.urlChan <- kSleepFlag
 		}
 	}
-
 }
 
-// 写入es
-func (esc *EsChannel) output() {
-	defer esc.esg.Done()
-	for {
-		select {
-		case <-esc.done:
-			close(esc.esChan)
-			return
-		case data := <-esc.esChan:
-			// 判断必须有title才能输出到es
-			// 需要先建es index和中文分词option
-			// 1. curl -XPUT http://localhost:9200/tti
-			// 2. curl -XPOST http://localhost:9200/tti/fulltext/_mapping -H 'Content-Type:application/json' -d'
-			//{
-			// "properties": {
-			//     "content": {
-			//         "type": "text",
-			//         "analyzer": "ik_max_word",
-			//         "search_analyzer": "ik_max_word"
-			//     }
-			// }
-			//}'
-			if data.Title != "" {
-				put1, err := esClient.Index().Index(kTripadvisorTitleIndex).Type("fulltext").
-					BodyJson(data).Do(context.Background())
 
-				if err != nil {
-					log.Printf("insert es err (%s)", err)
-				}
-				fmt.Printf("Id %s to index %s, type %s, url %s\n", put1.Id, put1.Index, put1.Type, data.Url)
-			}
-		}
-	}
-}
 
 // 抓取
 func (t *Tripadvisor) fetchTripadvisor(esChan *EsChannel) {
