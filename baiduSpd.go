@@ -23,7 +23,7 @@ var (
 	pn = 0
 
 	// 起多少个goroutine去抓取
-	bdFetchGoroutineTotal = 3
+	bdFetchGoroutineTotal = 1
 
 	// baidu url
 	detailUrl = "https://lvyou.baidu.com/notes/%s?"
@@ -95,8 +95,8 @@ func doBaidu() {
 
 	go bdTimerJob()
 
-	// 百度就1000 * 20
-	for i := pn; i <= 1000; i++ {
+	// 百度就1000
+	for i := pn; i*rn <= 1000; i++ {
 		baiduUrl := fmt.Sprintf(baiduUrlFmt, i*rn, rn)
 		bdPool[pn%bdFetchGoroutineTotal].urlChan <- baiduUrl
 	}
@@ -134,7 +134,7 @@ func (bd *Baidu) fetchBaidu(esChan *client.EsChannel) {
 				time.Sleep(time.Second * kBdSleepSecond)
 				continue
 			}
-
+			log.Printf("Info url %s\n", url)
 			res, err := client.ProxyRequestJson(url)
 
 			if err != nil {
