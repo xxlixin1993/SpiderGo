@@ -1,4 +1,4 @@
-// 抓取tripadvisor网站游记
+// 抓取tripadvisor网站游记  特别容易被封 建议使用ip代理
 package main
 
 import (
@@ -18,7 +18,7 @@ var (
 	tripadvisorTotalId = 10000
 
 	// 起多少个goroutine去抓取
-	fetchGoroutineTotal = 3
+	fetchGoroutineTotal = 1
 
 	// 要抓取的url ex: https://www.tripadvisor.cn/TourismBlog-t6598
 	tripadvisorDetail = "https://www.tripadvisor.cn/TourismBlog-t"
@@ -26,8 +26,8 @@ var (
 	// Tripadvisor协程池
 	tPool map[int]*Tripadvisor
 
-	// 当前id 初始为0 当前跑到8562被封了 所以从这开始继续
-	tripadvisorId = 8562
+	// 当前id 初始为0 当前跑到9918被封了 所以从这开始继续
+	tripadvisorId = 0
 )
 
 const (
@@ -38,7 +38,7 @@ const (
 	kIntervalSecond = 5
 
 	// 休息时间 s
-	kSleepSecond = 31
+	kSleepSecond = 5
 
 	// 休息标记
 	kSleepFlag = "sleep"
