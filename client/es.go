@@ -1,11 +1,11 @@
 package client
 
 import (
-	"sync"
-	"fmt"
-	"log"
 	"context"
+	"fmt"
 	"github.com/olivere/elastic"
+	"log"
+	"sync"
 )
 
 // es client
@@ -22,7 +22,6 @@ type EsChannel struct {
 	Done   chan int
 	Esg    sync.WaitGroup
 }
-
 
 func NewEsChannel() *EsChannel {
 	return &EsChannel{

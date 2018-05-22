@@ -2,20 +2,20 @@
 package main
 
 import (
+	"Spider/client"
 	"fmt"
-	"strconv"
-	"time"
-	"log"
-	"sync"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/olivere/elastic"
+	"log"
 	"os"
-	"Spider/client"
+	"strconv"
+	"sync"
+	"time"
 )
 
 var (
 	// 要抓取的游记最大id
-	tripadvisorTotalId = 1
+	tripadvisorTotalId = 10000
 
 	// 起多少个goroutine去抓取
 	fetchGoroutineTotal = 3
@@ -25,17 +25,20 @@ var (
 
 	// Tripadvisor协程池
 	tPool map[int]*Tripadvisor
+
+	// 当前id 初始为0 当前跑到8562被封了 所以从这开始继续
+	tripadvisorId = 8562
 )
 
 const (
 	// es 索引
-	kTripadvisorTitleIndex = "dev"
+	kTripadvisorTitleIndex = "tti"
 
 	// 间隔时间 s
-	kIntervalSecond = 10
+	kIntervalSecond = 5
 
 	// 休息时间 s
-	kSleepSecond = 30
+	kSleepSecond = 31
 
 	// 休息标记
 	kSleepFlag = "sleep"
@@ -67,12 +70,11 @@ func main() {
 
 func newTripadvisor() *Tripadvisor {
 	return &Tripadvisor{
-		sleep:    make(chan int),
+		sleep:   make(chan int),
 		urlChan: make(chan string),
 		done:    make(chan int),
 	}
 }
-
 
 // 开始获取页面信息
 func doTripadvisor() {
@@ -83,7 +85,7 @@ func doTripadvisor() {
 	esChan.Esg.Add(1)
 	go esChan.Output(kTripadvisorTitleIndex)
 
-	for gnum := 0; gnum < fetchGoroutineTotal; gnum ++ {
+	for gnum := 0; gnum < fetchGoroutineTotal; gnum++ {
 		tPool[gnum] = newTripadvisor()
 
 		tPool[gnum].twg.Add(1)
@@ -92,8 +94,7 @@ func doTripadvisor() {
 
 	go timerJob()
 
-	// 应该为1 6609当前
-	for i := 1; i <= tripadvisorTotalId; i++ {
+	for i := tripadvisorId; i <= tripadvisorTotalId; i++ {
 		tPool[i%fetchGoroutineTotal].urlChan <- tripadvisorDetail + strconv.Itoa(i)
 	}
 
@@ -107,7 +108,7 @@ func doTripadvisor() {
 }
 
 // 间隔一段时间在执行
-func timerJob(){
+func timerJob() {
 	t := time.NewTimer(time.Second * kIntervalSecond)
 
 	for _ = range t.C {
@@ -116,8 +117,6 @@ func timerJob(){
 		}
 	}
 }
-
-
 
 // 抓取
 func (t *Tripadvisor) fetchTripadvisor(esChan *client.EsChannel) {
@@ -133,14 +132,14 @@ func (t *Tripadvisor) fetchTripadvisor(esChan *client.EsChannel) {
 				continue
 			}
 
-			doc, err := client.ProxyRequest(url)
+			doc, err := client.ProxyRequestHtml(url)
 
 			if err != nil {
 				log.Printf("http do request err (%s)", err)
 				continue
 			}
 
-			title,_ := doc.Find(".strategy-title .title-text").Html()
+			title, _ := doc.Find(".strategy-title .title-text").Html()
 
 			s := doc.Find(".strategy-description").Each(func(i int, s *goquery.Selection) {
 
@@ -153,7 +152,7 @@ func (t *Tripadvisor) fetchTripadvisor(esChan *client.EsChannel) {
 			if title != "" {
 				esChan.EsChan <- esContent
 			} else {
-				log.Printf("None tile %s, url %s\n", title,url)
+				log.Printf("None tile %s, url %s\n", title, url)
 			}
 		}
 	}

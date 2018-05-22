@@ -1,16 +1,22 @@
 package client
 
 import (
-	"github.com/PuerkitoBio/goquery"
-	"net/http"
-	"log"
 	"Spider/tool"
+	"encoding/json"
+	"github.com/PuerkitoBio/goquery"
+	"io/ioutil"
+	"log"
+	"net/http"
 	"net/url"
 	"time"
 )
 
-// 代理请求
-func ProxyRequest(uri string) (*goquery.Document, error) {
+type ReqClient struct {
+	Client  *http.Client
+	IpProxy string
+}
+
+func getClient() *ReqClient {
 	var client *http.Client
 	var ipProxy string
 
@@ -32,10 +38,45 @@ func ProxyRequest(uri string) (*goquery.Document, error) {
 		client = &http.Client{}
 	}
 
-	resp, err := client.Get(uri)
+	reqClient := &ReqClient{
+		Client:  client,
+		IpProxy: ipProxy,
+	}
+
+	return reqClient
+}
+
+// html
+func ProxyRequestHtml(uri string) (*goquery.Document, error) {
+	reqClient := getClient()
+	resp, err := reqClient.Client.Get(uri)
 
 	if err != nil {
-		log.Printf("request error(%s)", ipProxy)
+		log.Printf("request error(%s)", reqClient.IpProxy)
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		log.Fatalf("ip maybe don not have permission, ip(%s)", reqClient.IpProxy)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		log.Printf("doc error(%s)", reqClient.IpProxy)
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	return doc, err
+}
+
+// json
+func ProxyRequestJson(uri string) (*BdJson, error) {
+	reqClient := getClient()
+	resp, err := reqClient.Client.Get(uri)
+
+	if err != nil {
+		log.Printf("request error(%s)", reqClient.IpProxy)
 		return nil, err
 	}
 
@@ -43,12 +84,31 @@ func ProxyRequest(uri string) (*goquery.Document, error) {
 		log.Fatalf("ip maybe don not have permission")
 	}
 
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
+
 	if err != nil {
-		log.Printf("doc error(%s)", ipProxy)
+		log.Printf("response error(%s)", reqClient.IpProxy)
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-	return doc, err
+	res := &BdJson{}
+	JsonErr := json.Unmarshal(body, &res)
+	return res, JsonErr
+}
+
+type BdJson struct {
+	Errno int        `json:"errno"`
+	Msg   string     `json:"msg"`
+	Data  BdDataJson `json:"data"`
+}
+
+type BdDataJson struct {
+	NotesList  []BdInfo `json:"notes_list"`
+	NotesCount int      `json:"notes_count"`
+	Abtest     int      `json:"abtest"`
+}
+
+type BdInfo struct {
+	Title   string `json:"title"`
+	Content string `json:"content"`
 }
