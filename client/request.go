@@ -111,4 +111,5 @@ type BdDataJson struct {
 type BdInfo struct {
 	Title   string `json:"title"`
 	Content string `json:"content"`
+	Nid     string `json:"nid"`
 }

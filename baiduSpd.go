@@ -23,15 +23,18 @@ var (
 	pn = 0
 
 	// 起多少个goroutine去抓取
-	bdFetchGoroutineTotal = 1
+	bdFetchGoroutineTotal = 3
+
+	// baidu url
+	detailUrl = "https://lvyou.baidu.com/notes/%s?"
 
 	// baidu协程池
 	bdPool map[int]*Baidu
 )
 
 const (
-	// es 索引
-	kBaiduIndex = "bdi"
+	// es 索引 bdi
+	kBaiduIndex = "dev"
 
 	// 间隔时间 s
 	kBdIntervalSecond = 5
@@ -94,7 +97,7 @@ func doBaidu() {
 
 	// 百度就1000 * 20
 	for i := pn; i <= 1000; i++ {
-		baiduUrl := fmt.Sprintf(baiduUrlFmt, pn*rn, rn)
+		baiduUrl := fmt.Sprintf(baiduUrlFmt, i*rn, rn)
 		bdPool[pn%bdFetchGoroutineTotal].urlChan <- baiduUrl
 	}
 
@@ -144,12 +147,12 @@ func (bd *Baidu) fetchBaidu(esChan *client.EsChannel) {
 					esContent := &client.EsContent{
 						Title:   val.Title,
 						Content: val.Content,
-						Url:     url,
+						Url:     fmt.Sprintf(detailUrl, val.Nid),
 					}
 					if val.Title != "" {
 						esChan.EsChan <- esContent
 					} else {
-						log.Printf("None tile %s, url %s\n", val.Title, url)
+						log.Printf("None tile %s, url %s\n", val.Title, val.Nid)
 					}
 				}
 			}
