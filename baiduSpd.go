@@ -34,7 +34,7 @@ var (
 
 const (
 	// es 索引 bdi
-	kBaiduIndex = "dev"
+	kBaiduIndex = "bdi"
 
 	// 间隔时间 s
 	kBdIntervalSecond = 5

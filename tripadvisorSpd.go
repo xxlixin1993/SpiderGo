@@ -31,7 +31,7 @@ var (
 )
 
 const (
-	// es 索引
+	// es 索引 tti
 	kTripadvisorTitleIndex = "tti"
 
 	// 间隔时间 s
