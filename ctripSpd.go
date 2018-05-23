@@ -17,7 +17,7 @@ import (
 
 var (
 	// 起多少个goroutine去抓取
-	cFetchGoroutineTotal = 10
+	cFetchGoroutineTotal = 5
 
 	// 列表页 p最大22067
 	ctripListPId = 22067
@@ -40,7 +40,7 @@ const (
 	kCtripIntervalSecond = 5
 
 	// 休息时间 s
-	kCtripSleepSecond = 5
+	kCtripSleepSecond = 1
 
 	// 休息标记
 	kCtripSleepFlag = "ctripSleep"
@@ -160,6 +160,7 @@ func (c *Ctrip) fetchCtrip(esChan *client.EsChannel) {
 					titleFirst, err := doc.Find(".ctd_head_left h2").Html()
 					if err != nil {
 						log.Printf("find detail title1 err (%s)", err)
+						continue
 					}
 					title = strings.TrimSpace(titleFirst)
 
@@ -187,6 +188,8 @@ func (c *Ctrip) fetchCtrip(esChan *client.EsChannel) {
 						log.Printf("None title %s, url %s\n", esContent.Title, esContent.Url)
 					}
 				}
+			} else {
+				log.Printf("Do not fetched list url %s\n", url)
 			}
 		}
 	}

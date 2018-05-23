@@ -24,7 +24,7 @@ func getClient() *ReqClient {
 	randomIp := tool.GenerateRangeNum(ipPoolLen)
 
 	if randomIp != ipPoolLen {
-		ipProxy = ipPool[randomIp]
+		ipProxy = "//" + ipPool[randomIp]
 		//ipProxy = "//222.76.187.13:8118"
 		proxy := func(_ *http.Request) (*url.URL, error) {
 			// 设置代理ip
