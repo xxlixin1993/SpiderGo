@@ -25,7 +25,7 @@ func getClient() *ReqClient {
 
 	if randomIp != ipPoolLen {
 		ipProxy = "//" + ipPool[randomIp]
-		//ipProxy = "//222.76.187.13:8118"
+
 		proxy := func(_ *http.Request) (*url.URL, error) {
 			// 设置代理ip
 			return url.Parse(ipProxy)
@@ -57,7 +57,7 @@ func ProxyRequestHtml(uri string) (*goquery.Document, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("ip maybe don not have permission, ip(%s)", reqClient.IpProxy)
+		log.Printf("ip maybe don not have permission, ip(%s)", reqClient.IpProxy)
 	}
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)

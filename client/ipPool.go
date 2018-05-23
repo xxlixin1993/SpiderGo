@@ -3,22 +3,27 @@ package client
 import (
 	"github.com/labstack/gommon/log"
 	"time"
-	"Spider/tool"
 )
 
 var ipPool = []string{
-	"218.60.8.99:3129",
-	"218.60.8.98:3129",
+	//"218.60.8.99:3129",
+	//"218.60.8.98:3129",
 	//暂时被猫途鹰封了
 	//"118.114.77.47:8080",
+
+	"27.154.144.211:21364",
+	"183.15.122.201:40309",
+	"113.124.222.238:40192",
+	"115.215.50.125:29384",
 }
 
 const (
-	kIpApi = "http://piping.mogumiao.com/proxy/api/get_ip_al?appKey=867c1126c52d48998e44408ea6e44f5a&count=20&expiryDate=0&format=1&newLine=2"
+	kIpApi = "http://piping.mogumiao.com/proxy/api/get_ip_bs?appKey=9b96ddf28bdc4261a87f3213d718b533&count=10&expiryDate=0&format=1&newLine=2"
+
 )
 
-func DoIp(){
-	ticker := time.NewTicker(10 * time.Second)
+func DoIp(sleepSecond time.Duration){
+	ticker := time.NewTicker(sleepSecond)
 	for _ = range ticker.C {
 		go GetIpPool()
 	}
@@ -38,13 +43,13 @@ func GetIpPool() {
 
 	if result.Code == "0" {
 		for _, val := range result.Msg {
-			IpStr += val.Ip + ":" + val.Port + "\n"
+			//IpStr += val.Ip + ":" + val.Port + "\n"
 			ipPoolTmp = append(ipPoolTmp, val.Ip + ":" + val.Port)
 		}
 	}
 
 	if len(ipPoolTmp) > 0 {
-		tool.Write(IpStr)
+		//tool.Write(IpStr)
 		ipPool = ipPoolTmp
 	}
 

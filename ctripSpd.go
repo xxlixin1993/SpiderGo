@@ -17,13 +17,13 @@ import (
 
 var (
 	// 起多少个goroutine去抓取
-	cFetchGoroutineTotal = 20
+	cFetchGoroutineTotal = 10
 
 	// 列表页 p最大22067
 	ctripListPId = 22067
 
-	// 当前列表页id
-	ctripListNowPId = 1
+	// 当前列表页id 应该从1开始 或者从哪停止后开始
+	ctripListNowPId = 290
 
 	// 列表页 p最大22067
 	ctripListUrlFmt = "http://you.ctrip.com/TravelSite/Home/IndexTravelListHtml?Idea=0&Type=2&Plate=0&p=%d"
@@ -37,7 +37,7 @@ const (
 	kCtripIndex = "ci"
 
 	// 间隔时间 s
-	kCtripIntervalSecond = 3
+	kCtripIntervalSecond = 4
 
 	// 休息时间 s
 	kCtripSleepSecond = 1
@@ -59,7 +59,7 @@ type Ctrip struct {
 func main() {
 	start := time.Now()
 
-	go client.GetIpPool()
+	go client.DoIp(7 * time.Second)
 
 	var esErr error
 	client.EsClient, esErr = elastic.NewClient()
