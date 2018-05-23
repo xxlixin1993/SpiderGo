@@ -10,17 +10,23 @@ import (
 	"github.com/olivere/elastic"
 	"log"
 	"github.com/PuerkitoBio/goquery"
+	"os/signal"
+	"syscall"
+	"strings"
 )
 
 var (
 	// 起多少个goroutine去抓取
-	cFetchGoroutineTotal = 1
+	cFetchGoroutineTotal = 10
+
+	// 列表页 p最大22067
+	ctripListPId = 22067
+
+	// 当前列表页id
+	ctripListNowPId = 1
 
 	// 列表页 p最大22067
 	ctripListUrlFmt = "http://you.ctrip.com/TravelSite/Home/IndexTravelListHtml?Idea=0&Type=2&Plate=0&p=%d"
-
-	// 携程域名
-	ctripDomain = "http://you.ctrip.com"
 
 	// Ctrip协程池
 	cPool map[int]*Ctrip
@@ -38,6 +44,9 @@ const (
 
 	// 休息标记
 	kCtripSleepFlag = "ctripSleep"
+
+	// 携程域名
+	kCtripDomain = "http://you.ctrip.com"
 )
 
 type Ctrip struct {
@@ -46,7 +55,6 @@ type Ctrip struct {
 	done    chan int
 	twg     sync.WaitGroup
 }
-
 
 func main() {
 	start := time.Now()
@@ -59,9 +67,9 @@ func main() {
 	}
 
 	doCtrip()
+	waitSignal()
 
 	secs := time.Since(start).Seconds()
-
 	fmt.Printf("time: %f", secs)
 }
 
@@ -74,12 +82,45 @@ func newCtrip() *Ctrip {
 }
 
 func doCtrip() {
+	cPool = make(map[int]*Ctrip)
 
+	esChan := client.NewEsChannel()
+
+	esChan.Esg.Add(1)
+	go esChan.Output(kCtripIndex)
+
+	for gnum := 0; gnum < cFetchGoroutineTotal; gnum++ {
+		cPool[gnum] = newCtrip()
+
+		cPool[gnum].twg.Add(1)
+		go cPool[gnum].fetchCtrip(esChan)
+	}
+
+	go ctripTimerJob()
+
+	for i := ctripListNowPId; i <= ctripListPId; i++ {
+		listUri := fmt.Sprintf(ctripListUrlFmt, i)
+		cPool[i%cFetchGoroutineTotal].urlChan <- listUri
+	}
+
+	for key := range cPool {
+		close(cPool[key].done)
+		cPool[key].twg.Wait()
+	}
+
+	close(esChan.Done)
+	esChan.Esg.Wait()
 }
 
-// 抓取列表页获取详情页id
-func fetchCtripList() {
+// 间隔一段时间在执行
+func ctripTimerJob() {
+	t := time.NewTimer(time.Second * kCtripIntervalSecond)
 
+	for _ = range t.C {
+		for _, val := range cPool {
+			val.urlChan <- kCtripSleepFlag
+		}
+	}
 }
 
 // 抓取详情页
@@ -91,38 +132,100 @@ func (c *Ctrip) fetchCtrip(esChan *client.EsChannel) {
 			close(c.urlChan)
 			return
 		case url := <-c.urlChan:
-			if url == kSleepFlag {
-				time.Sleep(time.Second * kSleepSecond)
+			if url == kCtripSleepFlag {
+				time.Sleep(time.Second * kCtripSleepSecond)
 				continue
 			}
 
 			// 先从列表页获取详情页url
-
-			// 在从详情页中获取title content url
-
-
-			doc, err := client.ProxyRequestHtml(url)
-
+			fmt.Println(url)
+			detailUrlSlice, err := fetchList(url)
 			if err != nil {
-				log.Printf("http do request err (%s)", err)
+				log.Printf("http do list request err (%s)", err)
 				continue
 			}
 
-			title, _ := doc.Find(".strategy-title .title-text").Html()
+			if len(detailUrlSlice) > 0 {
+				// 在从详情页中获取title content url
+				for _, detailUri := range detailUrlSlice {
+					doc, err := client.ProxyRequestHtml(detailUri)
+					if err != nil {
+						log.Printf("http do detail request err (%s)", err)
+						continue
+					}
 
-			s := doc.Find(".strategy-description").Each(func(i int, s *goquery.Selection) {
+					var title string
 
-			})
-			esContent := &client.EsContent{
-				Title:   title,
-				Content: s.Text(),
-				Url:     url,
-			}
-			if title != "" {
-				esChan.EsChan <- esContent
-			} else {
-				log.Printf("None tile %s, url %s\n", title, url)
+					// title有两种 第一种
+					titleFirst, err := doc.Find(".ctd_head_left h2").Html()
+					if err != nil {
+						log.Printf("find detail title1 err (%s)", err)
+						continue
+					}
+					title = strings.TrimSpace(titleFirst)
+
+					if title == "" {
+						// title第二种
+						titleSecond, err := doc.Find(".title1").Html()
+						if err != nil {
+							log.Printf("find detail title2 err (%s)", err)
+							continue
+						}
+						title = strings.TrimSpace(titleSecond)
+					}
+
+					content := doc.Find(".ctd_content p").Text()
+
+					esContent := &client.EsContent{
+						Title:   title,
+						Content: content,
+						Url:     detailUri,
+					}
+
+					if esContent.Title != "" {
+						esChan.EsChan <- esContent
+					} else {
+						log.Printf("None tile %s, url %s\n", esContent.Title, esContent.Url)
+					}
+				}
 			}
 		}
+	}
+}
+
+// 返回该列表页详情页的uri
+func fetchList(uri string) ([]string, error) {
+	doc, err := client.ProxyRequestHtml(uri)
+	if err != nil {
+		return nil, err
+	}
+
+	findRes := make([]string, 0)
+	doc.Find(".cpt").Each(func(i int, s *goquery.Selection) {
+		href, exists := s.Attr("href")
+		if exists {
+			findRes = append(findRes, kCtripDomain+href)
+		}
+	})
+
+	return findRes, nil
+}
+
+// Wait signal
+func waitSignal() {
+	sigChan := make(chan os.Signal)
+	signal.Notify(sigChan)
+
+	sig := <-sigChan
+
+	fmt.Printf("signal: %d", sig)
+
+	switch sig {
+	case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT:
+		fmt.Println("out")
+	case syscall.SIGUSR1:
+		fmt.Println("catch the signal SIGUSR1")
+	default:
+		fmt.Println("signal do not know")
 	}
 }
