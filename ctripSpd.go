@@ -17,7 +17,7 @@ import (
 
 var (
 	// 起多少个goroutine去抓取
-	cFetchGoroutineTotal = 5
+	cFetchGoroutineTotal = 20
 
 	// 列表页 p最大22067
 	ctripListPId = 22067
@@ -37,7 +37,7 @@ const (
 	kCtripIndex = "ci"
 
 	// 间隔时间 s
-	kCtripIntervalSecond = 5
+	kCtripIntervalSecond = 3
 
 	// 休息时间 s
 	kCtripSleepSecond = 1
@@ -58,6 +58,8 @@ type Ctrip struct {
 
 func main() {
 	start := time.Now()
+
+	go client.GetIpPool()
 
 	var esErr error
 	client.EsClient, esErr = elastic.NewClient()

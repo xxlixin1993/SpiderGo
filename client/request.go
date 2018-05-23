@@ -70,6 +70,24 @@ func ProxyRequestHtml(uri string) (*goquery.Document, error) {
 	return doc, err
 }
 
+type BdJson struct {
+	Errno int        `json:"errno"`
+	Msg   string     `json:"msg"`
+	Data  BdDataJson `json:"data"`
+}
+
+type BdDataJson struct {
+	NotesList  []BdInfo `json:"notes_list"`
+	NotesCount int      `json:"notes_count"`
+	Abtest     int      `json:"abtest"`
+}
+
+type BdInfo struct {
+	Title   string `json:"title"`
+	Content string `json:"content"`
+	Nid     string `json:"nid"`
+}
+
 // json
 func ProxyRequestJson(uri string) (*BdJson, error) {
 	reqClient := getClient()
@@ -96,20 +114,39 @@ func ProxyRequestJson(uri string) (*BdJson, error) {
 	return res, JsonErr
 }
 
-type BdJson struct {
-	Errno int        `json:"errno"`
-	Msg   string     `json:"msg"`
-	Data  BdDataJson `json:"data"`
+type IpApiJson struct {
+	Code string `json:"code"`
+	Msg []Msg `json:"msg"`
 }
 
-type BdDataJson struct {
-	NotesList  []BdInfo `json:"notes_list"`
-	NotesCount int      `json:"notes_count"`
-	Abtest     int      `json:"abtest"`
+type Msg struct {
+	Port string `json:"port"`
+	Ip	string `json:"ip"`
 }
 
-type BdInfo struct {
-	Title   string `json:"title"`
-	Content string `json:"content"`
-	Nid     string `json:"nid"`
+func RequestIpApi(url string) (*IpApiJson, error){
+	client := &http.Client{}
+	resp, err := client.Get(url)
+
+	if err != nil {
+		log.Printf("api request error(%s)", err)
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		log.Fatalf("ip maybe don not have permission")
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+
+
+
+	if err != nil {
+		log.Printf("api response error(%s)", err)
+		return nil, err
+	}
+
+	res := &IpApiJson{}
+	JsonErr := json.Unmarshal(body, &res)
+	return res, JsonErr
 }
