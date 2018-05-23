@@ -160,7 +160,6 @@ func (c *Ctrip) fetchCtrip(esChan *client.EsChannel) {
 					titleFirst, err := doc.Find(".ctd_head_left h2").Html()
 					if err != nil {
 						log.Printf("find detail title1 err (%s)", err)
-						continue
 					}
 					title = strings.TrimSpace(titleFirst)
 
@@ -185,7 +184,7 @@ func (c *Ctrip) fetchCtrip(esChan *client.EsChannel) {
 					if esContent.Title != "" {
 						esChan.EsChan <- esContent
 					} else {
-						log.Printf("None tile %s, url %s\n", esContent.Title, esContent.Url)
+						log.Printf("None title %s, url %s\n", esContent.Title, esContent.Url)
 					}
 				}
 			}
