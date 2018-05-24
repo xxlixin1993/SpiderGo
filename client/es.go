@@ -52,6 +52,9 @@ func (esc *EsChannel) Output(index string) {
 			//     }
 			// }
 			//}'
+
+			// 携程特殊使用
+			//index := "ciex" + strconv.Itoa(tool.GenerateRangeNum(20))
 			if data.Title != "" {
 				put1, err := EsClient.Index().Index(index).Type("fulltext").
 					BodyJson(data).Do(context.Background())

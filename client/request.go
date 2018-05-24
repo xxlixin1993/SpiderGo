@@ -32,7 +32,7 @@ func getClient() *ReqClient {
 		}
 
 		transport := &http.Transport{Proxy: proxy}
-		client = &http.Client{Transport: transport, Timeout: time.Second * 10}
+		client = &http.Client{Transport: transport, Timeout: time.Second * 5}
 	} else {
 		// 不使用代理
 		client = &http.Client{}
